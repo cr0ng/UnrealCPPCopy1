@@ -23,9 +23,8 @@ AActionCharacter::AActionCharacter()
 	PlayerCamera->SetupAttachment(SpringArm);
 	PlayerCamera->SetRelativeRotation(FRotator(-20.0f, 0.0f, 0.0f));
 
-	bUseControllerRotationYaw = false;	// 컨트롤러의 Yaw회전을 사용 안 함
+	bUseControllerRotationYaw = true;	// 컨트롤러의 Yaw회전을 사용함 -> 컨트롤러의 Yaw 회전을 캐릭터에 적용
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;	// 이동 방향을 바라보게 회전
 	GetCharacterMovement()->RotationRate = FRotator(0, 360, 0);
 }
 
@@ -63,15 +62,19 @@ void AActionCharacter::OnMoveInput(const FInputActionValue& InValue)
 
 	FVector moveDirection(inputDirection.Y, inputDirection.X, 0.0f);
 
-	//AddMovementInput(moveDirection);
+	FQuat ControlYawRotation = FQuat(FRotator(0, GetControlRotation().Yaw, 0));	// 컨트롤러의 Yaw 회전을 따로 뽑아와서
+	moveDirection = ControlYawRotation.RotateVector(moveDirection);	// 이동 방향에 적용
 
-	FRotator ControlRot = Controller->GetControlRotation();
-	FRotator YawRot(0, ControlRot.Yaw, 0);
-	const FVector ForwardDirection = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
-	const FVector RightDirection = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
-	
+	AddMovementInput(moveDirection);
 
-	AddMovementInput(ForwardDirection, inputDirection.Y);
-	AddMovementInput(RightDirection, inputDirection.X);
+
+	// 카메라 방향으로 이동 (지피티 검색)
+	//FRotator ControlRot = Controller->GetControlRotation();
+	//FRotator YawRot(0, ControlRot.Yaw, 0);
+	//const FVector ForwardDirection = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
+	//const FVector RightDirection = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
+	//
+	//AddMovementInput(ForwardDirection, inputDirection.Y);
+	//AddMovementInput(RightDirection, inputDirection.X);
 }
 
