@@ -6,7 +6,6 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/CameraComponent.h"
-#include "TimerManager.h"
 
 // Sets default values
 AActionCharacter::AActionCharacter()
@@ -25,7 +24,7 @@ AActionCharacter::AActionCharacter()
 	PlayerCamera->SetRelativeRotation(FRotator(-20.0f, 0.0f, 0.0f));
 
 	bUseControllerRotationYaw = false;	// 컨트롤러의 Yaw회전을 사용 안함
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bOrientRotationToMovement = true;	// 이동 방향으로 캐릭터 회전
 	GetCharacterMovement()->RotationRate = FRotator(0, 360, 0);
 }
 
@@ -35,16 +34,54 @@ void AActionCharacter::BeginPlay()
 	Super::BeginPlay();
 	
 	AnimInstance = GetMesh()->GetAnimInstance();	// ABP 객체 가져오기
-	CurrentStamina = MaxStamina;
+
+	// 게임 진행 중에 자주 변경되는 값은 시작 시점에서 리셋을 해주는 것이 좋다.
+	CurrentStamina = MaxStamina;	// 시작할 때 최대치로 설정
+	bIsSprint = false;
 }
 
 // Called every frame
 void AActionCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
-	SetStamina(DeltaTime);
 
+	// 내가 직접 누적하는 경우
+	//TimeSinceLastStaminaUse += DeltaTime;
+	//if (TimeSinceLastStaminaUse > StaminaRegenCoolTime && CurrentStamina <= MaxStamina)
+	//{
+	//	CurrentStamina = FMath::Min(CurrentStamina + StaminaRegenAmount * DeltaTime,MaxStamina);
+	//	
+	//	UE_LOG(LogTemp, Warning, TEXT("Stamina Regen : %.1f"), CurrentStamina);
+	//}
+
+	// 타이머로 조건만 설정하는 경우
+	//if (bRegenStamina)
+	//{
+	//	CurrentStamina += StaminaRegenAmount * DeltaTime;
+
+	//	if (CurrentStamina > MaxStamina)
+	//	{
+	//		bRegenStamina = false;
+	//		CurrentStamina = MaxStamina;
+	//	}
+	//	UE_LOG(LogTemp, Warning, TEXT("Stamina Regen : %1.f"), CurrentStamina);
+	//}
+
+	if (bIsSprint && !GetVelocity().IsNearlyZero()) // 달리기 모드인 상태에서 움직이면 스태미너를 소비한다.
+	{
+		CurrentStamina -= SprintStaminaCost * DeltaTime;
+		
+		//TimeSinceLastStaminaUse = 0;
+		StaminaRegenTimerSet();
+
+		if (CurrentStamina <= 0)
+		{
+			CurrentStamina = 0.0f;
+			SetWalkMode();
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Stamina : %.1f"), CurrentStamina);
+	}
 }
 
 // Called to bind functionality to input
@@ -96,16 +133,19 @@ void AActionCharacter::OnRollInput(const FInputActionValue& InValue)
 {
 	if (AnimInstance.IsValid())
 	{
-		if (!AnimInstance->IsAnyMontagePlaying())
+		if (!AnimInstance->IsAnyMontagePlaying() 
+			&& CurrentStamina >= RollStaminaCost)
 		{
-			//if (GetLastMovementInputVector().IsNearlyZero())	// 입력을 하는 중에만 즉시 회전
+			//if (GetLastMovementInputVector(                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ).IsNearlyZero())	// 입력을 하는 중에만 즉시 회전
 			//{
 			//	SetActorRotation(GetLastMovementInputVector().Rotation());	// 마지막 입력 방향으로 즉시 회전 시키기
 			//}
-			if (CurrentStamina > 0.0f) {
-				PlayAnimMontage(RollMontage);
-				CurrentStamina -= DecreaseRollStamina;
-			}
+			CurrentStamina -= RollStaminaCost;
+			//TimeSinceLastStaminaUse = 0.0f;
+			StaminaRegenTimerSet();
+
+			UE_LOG(LogTemp, Warning, TEXT("Stamina : %.1f"), CurrentStamina);
+			PlayAnimMontage(RollMontage);
 		}
 	}
 }
@@ -113,40 +153,51 @@ void AActionCharacter::OnRollInput(const FInputActionValue& InValue)
 void AActionCharacter::SetSprintMode()
 {
 	//UE_LOG(LogTemp, Warning, TEXT("달리기 모드"));
-	BIsSprint = true;
 	GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+	bIsSprint = true;
 	
 }
 
 void AActionCharacter::SetWalkMode()
 {
 	//UE_LOG(LogTemp, Warning, TEXT("걷기 모드"));
-	BIsSprint = false;
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	bIsSprint = false;
 }
 
-void AActionCharacter::SetStamina(float deltaTime)
+void AActionCharacter::StaminaRegenTimerSet()
 {
-	if (BIsSprint) {
-		CurrentStamina -= DecreaseSprintStamina * deltaTime;
-		UE_LOG(LogTemp, Warning, TEXT("남은 스테미나 : (%.1f)"), CurrentStamina);
-		
-		if (CurrentStamina <= 0.0f)
-		{
-			CurrentStamina = 0.0f;
-			SetWalkMode(); // 스테미나 없으면 걷기로 전환
-		}
-	}
-	else 
-	{
-		if (CurrentStamina < MaxStamina) {
-			CurrentStamina += IncreaseStamina * deltaTime;
-		}
-		UE_LOG(LogTemp, Warning, TEXT("스테미나 회복중: (%.1f)"), CurrentStamina);
-		if (CurrentStamina > MaxStamina)
-		{
-			CurrentStamina = MaxStamina;
-		}
-	}
+	//UWorld* world = GetWorld();
+		//FTimerManager& timerMAnager = world->GetTimerManager();
 
+	// GetWorldTimerManager().ClearTimer(StaminaCoolTimer);	// 해서 나쁠 것 없음(SetTimer할 때 이미 내부적으로 처리하고 있음)
+	GetWorldTimerManager().SetTimer(
+		StaminaCoolTimer,
+		[this]() {
+			//bRegenStamina = true;
+			UE_LOG(LogTemp, Log, TEXT("리젠 타이머 실행"));
+
+			GetWorldTimerManager().SetTimer(
+				StaminaRegenTimer,
+				this,
+				&AActionCharacter::StaminaRegenPerTick,
+				0.1f,	// 실행 간격
+				true,	// 반복 재생 여부
+				0.1f);	// 첫 딜레이
+		},
+		StaminaRegenCoolTime,
+		false);
+}
+
+void AActionCharacter::StaminaRegenPerTick()
+{
+	CurrentStamina += StaminaRegenAmountPerTick;	// 틱당 10
+	//CurrentStamina += MaxStamina * StaminaRegenRatePerTick;	// 틱당 최대 스태미너의 10%
+
+	if (CurrentStamina > MaxStamina)
+	{
+		CurrentStamina = MaxStamina;
+		GetWorldTimerManager().ClearTimer(StaminaRegenTimer);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Stamina Regen : %.1f"), CurrentStamina);
 }
