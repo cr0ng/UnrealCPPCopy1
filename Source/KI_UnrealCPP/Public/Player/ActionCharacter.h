@@ -8,6 +8,8 @@
 #include "ActionCharacter.generated.h"
 
 class UInputAction;
+//class USpringArmComponent;
+class UResourceComponent;
 
 UCLASS()
 class KI_UNREALCPP_API AActionCharacter : public ACharacter
@@ -22,12 +24,14 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UResourceComponent* GetResourceComponent() { return Resource; }
 
 protected:
 	// 이동 방향 입력 받기
@@ -44,15 +48,13 @@ protected:
 	void SetWalkMode();
 
 private:
-	 
+
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Camera")
 	TObjectPtr<class USpringArmComponent> SpringArm = nullptr;
-	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Camera")
 	TObjectPtr<class UCameraComponent> PlayerCamera = nullptr;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Resource")
 	TObjectPtr<class UResourceComponent> Resource = nullptr;
 
@@ -65,11 +67,10 @@ protected:
 	TObjectPtr<UInputAction> IA_Roll = nullptr;
 
 	// 달리기 속도
-	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category="Player|Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Movement")
 	float SprintSpeed = 1200.0f;
-
 	// 걷기 속도
-	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category="Player|Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Movement")
 	float WalkSpeed = 600.0f;
 
 	// 구르기 몽타주
@@ -91,4 +92,5 @@ protected:
 private:
 	UPROPERTY()
 	TWeakObjectPtr<UAnimInstance> AnimInstance = nullptr;
+
 };
