@@ -6,8 +6,10 @@
 #include "Components/ActorComponent.h"
 #include "ResourceComponent.generated.h"
 
+// FOnStaminaEmpty 이름의 델리게이트가 있다고 선언한 것
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaminaEmpty);
 
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+UCLASS(Blueprintable, ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class KI_UNREALCPP_API UResourceComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -31,6 +33,10 @@ public:
 	// 스태미너가 충분한지 확인하는 함수
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	inline bool HasEnoughStamina(float InValue) { return CurrentStamina >= InValue; }
+
+	// 스태미너가 다 떨어졌음을 알리는 델리게이트
+	UPROPERTY(BlueprintAssignable, Category = "Event")
+	FOnStaminaEmpty OnStaminaEmpty;
 
 private:
 	void StaminaAutoRegenCoolTimerSet();
