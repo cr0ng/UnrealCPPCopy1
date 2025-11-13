@@ -7,7 +7,7 @@
 #include "ResourceBarWidget.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
 class KI_UNREALCPP_API UResourceBarWidget : public UUserWidget
@@ -16,15 +16,27 @@ class KI_UNREALCPP_API UResourceBarWidget : public UUserWidget
 public:
 	UFUNCTION(BlueprintCallable)
 	void RefreshWidget(float InCurrent, float InMax);
-	
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+protected:
+	virtual void NativePreConstruct() override;
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resource", meta = (BindWidget))
-	TObjectPtr<class UProgressBar> Bar;
+	TWeakObjectPtr<class UProgressBar> Bar;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resource", meta = (BindWidget))
-	TObjectPtr<class UTextBlock> Current;
+	TWeakObjectPtr<class UTextBlock> Current;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resource", meta = (BindWidget))
-	TObjectPtr<class UTextBlock> Max;
+	TWeakObjectPtr<class UTextBlock> Max;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	FLinearColor FillColor = FLinearColor(0.0f, 1.0f, 0.0f); //FLinearColor::Green
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Color")
+	FLinearColor BackgroundColor = FLinearColor(0.0f, 1.0f, 0.0f, 0.2f);
 };
