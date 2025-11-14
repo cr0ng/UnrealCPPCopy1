@@ -34,6 +34,4 @@ protected:
 private:
 	UPROPERTY()
 	TWeakObjectPtr<class AActionCharacter> OwnerCharacter = nullptr;
-
-
 };

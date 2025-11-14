@@ -3,6 +3,8 @@
 
 #include "Weapon/WeaponActor.h"
 #include "Components/CapsuleComponent.h"
+#include "Player/ActionCharacter.h"
+#include "Player/StatusComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
@@ -39,12 +41,15 @@ void AWeaponActor::OnWeaponBeginOverlap(AActor* OverlappedActor, AActor* OtherAc
 	if (WeaponOwner.IsValid()) {
 		if (WeaponOwner == OtherActor) // 내가 오버랩될 때는 무시
 			return;
+		if (WeaponOwner->GetStatusComponent() != nullptr)
+		{
+			finalDamage += WeaponOwner->GetStatusComponent()->GetAttackPower();
 
-		//finalDamage += WeaponOwner->GetAttackPower();
+		}
 		instigator = WeaponOwner->GetController();
 	}
 	
-	UE_LOG(LogTemp, Log, TEXT("Overlapped : %s"), *OtherActor->GetName());
+	//UE_LOG(LogTemp, Log, TEXT("Overlapped : %s"), *OtherActor->GetName());
 	UGameplayStatics::ApplyDamage(OtherActor, finalDamage, instigator, this, DamageType);
 
 }
