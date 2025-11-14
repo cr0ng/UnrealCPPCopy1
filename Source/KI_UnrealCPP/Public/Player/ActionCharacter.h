@@ -64,6 +64,9 @@ protected:
 	UFUNCTION()
 	void SetWalkMode();
 
+	UFUNCTION()
+	void OnGetWeapon(AActor* OverlappedActor, AActor* OtherActor);
+
 private:
 	// 콤보용 섹션 점프 함수
 	void SectionJumpForCombo();
@@ -132,6 +135,7 @@ protected:
 	// 플레이어가 현재 가지고 있는 무기
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Player|Weapon")
 	TWeakObjectPtr<class AWeaponActor> CurrentWeapon = nullptr;
+
 
 private:
 	UPROPERTY()
