@@ -46,7 +46,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
 	TSubclassOf<UDamageType> DamageType = nullptr;
 
-
 private:
 	TWeakObjectPtr<AActionCharacter> WeaponOwner = nullptr;
 };

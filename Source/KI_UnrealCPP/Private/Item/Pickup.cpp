@@ -81,6 +81,7 @@ void APickup::OnPickup_Implementation(AActor* Target)
 		UE_LOG(LogTemp, Log, TEXT("OnPickup_Implementation 실행"));
 		bPickuped = true;
 		PickupOwner = Target;
+		SetActorEnableCollision(false);	// 버그 때문에 추가
 		PickupTimeline->PlayFromStart();	// 타임라인 시작
 	}
 }
