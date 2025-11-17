@@ -18,6 +18,7 @@
 //	- Event는 외부에서 바인딩만 가능
 //	- Delegate는 외부에서 바인딩과 실행 모두 가능
 // 선언은 클래스 외부에서 선언
+// 옵저버 패턴에 사용된다.
 
 // 선언은 서로 조합이 가능함
 // DECLARE_DELEGATE
@@ -47,9 +48,6 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 	// 체력 추가/감소용 함수
 	UFUNCTION(BlueprintCallable)
 	void AddHealth(float InValue);
@@ -72,6 +70,16 @@ public:
 	inline float GetCurrentStamina() const { return CurrentStamina; }
 	inline float GetMaxStamina() const { return MaxStamina; }
 
+	inline void SetMaxHealth(float InValue) {
+		MaxHealth = InValue;
+		OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
+	};
+	inline void SetMaxStamina(float InValue) {
+		MaxStamina = InValue;
+		//.UE_LOG(LogTemp, Warning, TEXT("Stamina : %.1f"), CurrentStamina);
+		OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	};
+
 	// 사망을 알리는 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "Event")
 	FOnDie OnDie;
@@ -92,17 +100,17 @@ private:
 	void StaminaRegenPerTick();
 
 	inline void SetCurrentHealth(float InValue) {
-		CurrentHealth = InValue;
+		CurrentHealth = FMath::Clamp(InValue, 0, MaxHealth);
 		OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
 	};
 	inline void SetCurrentStamina(float InValue) {
-		CurrentStamina = InValue;
-		//UE_LOG(LogTemp, Warning, TEXT("Stamina : %1.f"), CurrentStamina);
+		CurrentStamina = FMath::Clamp(InValue, 0, MaxStamina);
+		//.UE_LOG(LogTemp, Warning, TEXT("Stamina : %.1f"), CurrentStamina);
 		OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
 	};
 
 protected:
-	// 현재 체력 (값을 설정할 때 SetCurrentHealth로 설정할 것)
+	// 현재 체력(값을 설정할 때 SetCurrentHealth로 설정할 것)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data|Health")
 	float CurrentHealth = 100.0f;
 
@@ -110,7 +118,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data|Health")
 	float MaxHealth = 100.0f;
 
-	// 현재 스태미너 (값을 설정할 때 SetCurrentStamina로 설정할 것)
+	// 현재 스태미너(값을 설정할 때 SetCurrentStamina로 설정할 것)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data|Stamina")
 	float CurrentStamina = 100.0f;
 

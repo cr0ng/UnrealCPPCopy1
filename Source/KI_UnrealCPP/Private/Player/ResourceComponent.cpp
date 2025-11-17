@@ -10,8 +10,6 @@ UResourceComponent::UResourceComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
-
-	// ...
 }
 
 
@@ -22,20 +20,38 @@ void UResourceComponent::BeginPlay()
 
 	// 게임 진행 중에 자주 변경되는 값은 시작 시점에서 리셋을 해주는 것이 좋다.
 	SetCurrentHealth(MaxHealth);
-	SetCurrentStamina(MaxStamina);	// 시작할 때 최대치로 리셋
-
+	SetCurrentStamina(MaxStamina);	// 시작할 때 최대치로 리셋		
 }
 
 // Called every frame
-void UResourceComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
+//void UResourceComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+//{
+//	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+//
+//	// 내가 시간 누적을 직접 하는 경우
+//	//TimeSinceLastStaminaUse += DeltaTime;
+//	//if (TimeSinceLastStaminaUse > StaminaRegenCoolTime && CurrentStamina <= MaxStamina)
+//	//{
+//	//	CurrentStamina = FMath::Min(CurrentStamina + StaminaRegenAmount * DeltaTime, MaxStamina);
+//	//	UE_LOG(LogTemp, Warning, TEXT("Stamina Regen : %.1f"), CurrentStamina);
+//	//}
+//
+//	// 타이머로 조건만 설정하는 경우
+//	//if (bRegenStamina)
+//	//{
+//	//	CurrentStamina += StaminaRegenAmount * DeltaTime;
+//	//	if (CurrentStamina > MaxStamina)
+//	//	{
+//	//		bRegenStamina = false;
+//	//		CurrentStamina = MaxStamina;
+//	//	}
+//	//	UE_LOG(LogTemp, Warning, TEXT("Stamina Regen : %.1f"), CurrentStamina);
+//	//}
+//}
 
 void UResourceComponent::AddHealth(float InValue)
 {
-	float health = CurrentHealth + InValue;
-	SetCurrentHealth(FMath::Clamp(health, 0, MaxHealth));
+	SetCurrentHealth(CurrentHealth + InValue);
 
 	if (!IsAlive())
 	{
@@ -48,10 +64,13 @@ void UResourceComponent::AddStamina(float InValue)
 	//TimeSinceLastStaminaUse = 0;	// 시간을 직접 제어할 때 쓰던 코드(예시 확인용)
 
 	// 스태미너 변경 처리
-	SetCurrentStamina(FMath::Clamp(CurrentStamina + InValue, 0, MaxStamina));
+	SetCurrentStamina(CurrentStamina + InValue);
 
-	// 스태미너를 소비하고 일정 시간 뒤에 자동재생되게 타이머 세팅
-	StaminaAutoRegenCoolTimerSet();
+	if (InValue < 0)
+	{
+		// 스태미너를 소비하고 일정 시간 뒤에 자동재생되게 타이머 세팅
+		StaminaAutoRegenCoolTimerSet();
+	}
 
 	if (CurrentStamina <= 0)
 	{
@@ -67,27 +86,25 @@ void UResourceComponent::StaminaAutoRegenCoolTimerSet()
 	FTimerManager& timerManager = world->GetTimerManager();
 
 	//GetWorldTimerManager().ClearTimer(StaminaCoolTimer);	// 해서 나쁠 것은 없음(SetTimer할 때 이미 내부적으로 처리하고 있다)
-
-	timerManager.ClearTimer(StaminaRegenTickTimer);	// 쿨이 새로 시작되면 지속 회복 시키던 것 취소하기
+	timerManager.ClearTimer(StaminaRegenTickTimer);	// 쿨이 새로 시작되면 지속회복 시키던 것 취소하기
 	timerManager.SetTimer(
-		StaminaAutoRegenCoolTimer,
+		StaminaAutoRegenCoolTimer,	// StaminaAutoRegenCoolTimer핸들에 연결될 타이머 세팅.(StaminaRegenCoolTime초 후에 한번만 람다식을 실행하는 타이머)
 		[this]() {
 			//bRegenStamina = true;
 			UE_LOG(LogTemp, Log, TEXT("리젠 타이머 실행"));
-			 
-			// StaminaRegenTickTimer 핸들에 연결될 타이머 세팅
-			//		StaminaTickInterval초를 첨에 한 번 기다리고,
-			//		StaminaTickInterval 시간 간격으로
-			//		이 클래스의 StaminaRegenPerTick 함수를 실행하는 타이머) 
 
+			// StaminaRegenTickTimer핸들에 연결될 타이머 세팅
+			//		StaminaTickInterval초를 첨에 한번 기다리고, 
+			//		StaminaTickInterval시간간격으로 
+			//		이 클래스의 StaminaRegenPerTick함수를 실행하는 타이머
 			UWorld* world = GetWorld();
 			FTimerManager& timerManager = world->GetTimerManager();
 			timerManager.SetTimer(
-				StaminaRegenTickTimer,	// StaminaAutoRegenCoolTimer 핸들에 연결될 타이머 세팅. (StaminaRegenCoolTime 초 후에 한 번만 람다식을 실행하는 타이머)
+				StaminaRegenTickTimer,
 				this,
-				&UResourceComponent::StaminaRegenPerTick,	
+				&UResourceComponent::StaminaRegenPerTick,
 				StaminaTickInterval,	// 실행 간격
-				true,	// 반복 재생 여부
+				true,					// 반복 재생 여부
 				StaminaTickInterval);	// 첫 딜레이
 		},
 		StaminaRegenCoolTime,

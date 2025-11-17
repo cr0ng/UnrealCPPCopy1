@@ -9,6 +9,7 @@
 #include "Player/ResourceComponent.h"
 #include "Player/StatusComponent.h"
 #include "Weapon/WeaponActor.h"
+#include "Item/Pickupable.h"
 
 // Sets default values
 AActionCharacter::AActionCharacter()
@@ -27,7 +28,7 @@ AActionCharacter::AActionCharacter()
 	PlayerCamera->SetRelativeRotation(FRotator(-20.0f, 0.0f, 0.0f));
 
 	Resource = CreateDefaultSubobject<UResourceComponent>(TEXT("PlayerResource"));
-	Status = CreateDefaultSubobject<UStatusComponent>(TEXT("PlayerRestatus"));
+	Status = CreateDefaultSubobject<UStatusComponent>(TEXT("PlayerStatus"));
 
 	bUseControllerRotationYaw = false;	// 컨트롤러의 Yaw 회전 사용 안함
 	GetCharacterMovement()->bOrientRotationToMovement = true;	// 이동 방향으로 캐릭터 회전
@@ -37,25 +38,35 @@ AActionCharacter::AActionCharacter()
 // Called when the game starts or when spawned
 void AActionCharacter::BeginPlay()
 {
-	Super::BeginPlay();
+	if (Resource)
+	{
+		Resource->OnStaminaEmpty.AddDynamic(this, &AActionCharacter::SetWalkMode);
+		if (Status)
+		{
+			Resource->SetMaxHealth(Status->GetMaxHealth());
+			Resource->SetMaxStamina(Status->GetMaxStamina());
+		}
+	}
+
+	Super::BeginPlay();	// 컴포넌트들의 BeginPlay가 실행된다.
 
 	if (GetMesh())
 	{
 		AnimInstance = GetMesh()->GetAnimInstance();	// ABP 객체 가져오기
 	}
-	if (Resource)
-	{
-		Resource->OnStaminaEmpty.AddDynamic(this, &AActionCharacter::SetWalkMode);
-	}
 
 	// 게임 진행 중에 자주 변경되는 값은 시작 시점에서 리셋을 해주는 것이 좋다.
 	bIsSprint = false;
+
+	// 캐릭터에 다른 액터가 오버랩되었을 때 실행하기 위한 바인딩
+	OnActorBeginOverlap.AddDynamic(this, &AActionCharacter::OnBeginOverlap);
 }
 
 // Called every frame
 void AActionCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
 	SpendRunStamina(DeltaTime);
 }
 
@@ -78,8 +89,13 @@ void AActionCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 			});
 		enhanced->BindAction(IA_Roll, ETriggerEvent::Triggered, this, &AActionCharacter::OnRollInput);
 		enhanced->BindAction(IA_Attack, ETriggerEvent::Triggered, this, &AActionCharacter::OnAttackInput);
-		enhanced->BindAction(IA_AttackTest, ETriggerEvent::Triggered, this, &AActionCharacter::OnAttackTestInput);
 	}
+}
+
+void AActionCharacter::AddItem_Implementation(EItemCode Code)
+{
+	const UEnum* EnumPtr = StaticEnum<EItemCode>();
+	UE_LOG(LogTemp, Log, TEXT("아이템 추가 : %s"), *EnumPtr->GetDisplayNameTextByValue(static_cast<int8>(Code)).ToString());
 }
 
 void AActionCharacter::OnAttackEnable(bool bEnable)
@@ -88,8 +104,6 @@ void AActionCharacter::OnAttackEnable(bool bEnable)
 	{
 		CurrentWeapon->AttackEnable(bEnable);
 	}
-
-
 }
 
 void AActionCharacter::OnMoveInput(const FInputActionValue& InValue)
@@ -125,40 +139,15 @@ void AActionCharacter::OnRollInput(const FInputActionValue& InValue)
 
 void AActionCharacter::OnAttackInput(const FInputActionValue& InValue)
 {
-	//AWeaponActor* Weapon = GetWorld()->SpawnActor<AWeaponActor>();
-	if (AnimInstance.IsValid() && Resource->HasEnoughStamina(AttackStaminaCost))	// 애님 인스턴스가 있고 스태미너도 충분할 때
+	if (AnimInstance.IsValid() && Resource->HasEnoughStamina(AttackStaminaCost)) // 애님 인스턴스가 있고 스태미너도 충분할 때
 	{
 		if (!AnimInstance->IsAnyMontagePlaying())	// 몽타주가 재생 중이 아닐 때
 		{
-			//Weapon->AttackEnable(true);
-
-			// 첫 번째 공격
+			// 첫번째 공격
 			PlayAnimMontage(AttackMontage);
 			Resource->AddStamina(-AttackStaminaCost);	// 스태미너 감소
 		}
 		else if (AnimInstance->GetCurrentActiveMontage() == AttackMontage)	// 몽타주가 재생 중인데, AttackMontage가 재생중이면
-		{
-			// 콤보 공격
-			SectionJumpForCombo();
-		}
-		//Weapon->AttackEnable(false);
-	}
-}
-
-// 테스트용 우클릭 공격
-void AActionCharacter::OnAttackTestInput(const FInputActionValue& InValue)
-{
-	if (AnimInstance.IsValid() && Resource->HasEnoughStamina(AttackStaminaCost))	// 애님 인스턴스가 있고 스태미너도 충분할 때
-	{
-		if (!AnimInstance->IsAnyMontagePlaying())	// 몽타주가 재생 중이 아닐 때
-		{
-
-			// 첫 번째 공격
-			PlayAnimMontage(AttackTestMontage);
-			Resource->AddStamina(-AttackStaminaCost);	// 스태미너 감소
-
-		}
-		else if (AnimInstance->GetCurrentActiveMontage() == AttackTestMontage)	// 몽타주가 재생 중인데, AttackMontage가 재생중이면
 		{
 			// 콤보 공격
 			SectionJumpForCombo();
@@ -180,30 +169,49 @@ void AActionCharacter::SetWalkMode()
 	bIsSprint = false;
 }
 
+void AActionCharacter::OnBeginOverlap(AActor* OverlappedActor, AActor* OtherActor)
+{
+	//UE_LOG(LogTemp, Log, TEXT("Char overlap : other is %s"), *OtherActor->GetName());
+
+	// Cast를 이용한 인터페이스 사용
+	//IPickupable* test = Cast<IPickupable>(OtherActor);
+	//if (test)
+	//{
+	//	IPickupable::Execute_OnPickup(OtherActor);	// 만약에 블루프린트 구현이 있을 경우. 블루프린트의 구현이 실행된다.
+	//	//test->OnPickup_Implementation();	// 블루프린트 구현은 무시
+	//}
+
+	// Implements를 이용한 인터페이스 사용
+	if (OtherActor->Implements<UPickupable>())	// OtherActor가 IPickable인터페이스를 구현했는지 확인
+	{
+		IPickupable::Execute_OnPickup(OtherActor, this);	// 구현이 되어 있으면 실행
+	}
+}
+
 void AActionCharacter::SectionJumpForCombo()
 {
 	if (SectionJumpNotify.IsValid() && bComboReady)	// SectionJumpNotify가 있고 콤보가 가능한 상태이면
 	{
 		UAnimMontage* current = AnimInstance->GetCurrentActiveMontage();
 		AnimInstance->Montage_SetNextSection(					// 다음 섹션으로 점프하기
-			AnimInstance->Montage_GetCurrentSection(current),	// 현재 섹션
-			SectionJumpNotify->GetNextSectionName(),			// 다음 섹션의 이름
-			current);											// 실행될 몽타주
+			AnimInstance->Montage_GetCurrentSection(current),		// 현재 섹션
+			SectionJumpNotify->GetNextSectionName(),				// 다음 섹션의 이름
+			current);												// 실행될 몽타주
 
-		bComboReady = false;		// 중복 실행 방지
-		Resource->AddStamina(-AttackStaminaCost);
-
+		bComboReady = false;	// 중복실행 방지
+		Resource->AddStamina(-AttackStaminaCost);	// 스태미너 감소
 	}
 }
 
 void AActionCharacter::SpendRunStamina(float DeltaTime)
 {
-
-	//UE_LOG(LogTemp, Log, TEXT("Velocity : %s"), *GetVelocity().ToString());
-
-	if ((bIsSprint && !GetVelocity().IsNearlyZero())							// 달리기 상태이고 움직이지 않고 있다.
-		&& (AnimInstance.IsValid() && !AnimInstance->IsAnyMontagePlaying()))	// 어떤 몽타쥬도 재생중이지 않다. (루트모션 때문에 Velocity  변경 있음)
+	if ((bIsSprint && !GetVelocity().IsNearlyZero())							// 달리기 상태이고 움직이지 않고 있다.			
+		&& (AnimInstance.IsValid() && !AnimInstance->IsAnyMontagePlaying()))	// 어떤 몽타쥬도 재생중이지 않다.(루트모션 때문에 Velocity 변경있음)
 	{
 		Resource->AddStamina(-SprintStaminaCost * DeltaTime);	// 스태미너 감소
+		//UE_LOG(LogTemp, Log, TEXT("Velocity : %s"), *GetVelocity().ToString());
+		//UE_LOG(LogTemp, Warning, TEXT("Stamina : %.1f"), Resource->GetCurrentStamina());
 	}
+
+	//GetWorld()->GetFirstPlayerController()->GetHUD();
 }
