@@ -28,21 +28,15 @@ public:
 	// IPickupable의 구현
 	virtual void OnPickup_Implementation(AActor* Target) override;
 
-private:
-	UFUNCTION()
-	void OnPickupBeginOverlap(
-		UPrimitiveComponent* OverlappedComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex,
-		bool bFromSweep,
-		const FHitResult& SweepResult);
+	// 픽업에 힘을 가해서 날리는 함수
+	void AddImpulse(FVector& Velocity);
 
+private:
 	UFUNCTION()
 	void OnTimelineUpdate(float Value);
 
 	UFUNCTION()
-	void OnTimelineFinish();
+	void OnTimelineFinished();
 
 protected:
 	// 물리 적용용 루트
@@ -69,19 +63,25 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup")
 	EItemCode PickupItem = EItemCode::BasicWeapon;
 
+	// 스폰 후에 먹을 수 있기 될 때까지의 시간
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
+	float PickupableTime = 3.0f;
+
 	// 아이템 회전 속도
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
 	float RotateSpeed = 180.0f;
 
-	// 픽업 획득 효과용 스케일 커브
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup")
-	TObjectPtr<UCurveFloat> ScaleCurve = nullptr;
-
+	// 픽업 획득 효과용 거리 보간 커브
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<UCurveFloat> DistanceCurve = nullptr;
 
+	// 픽업 획득 효과용 높이 커브
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup")
 	TObjectPtr<UCurveFloat> HeightCurve = nullptr;
+
+	// 픽업 획득 효과용 스케일 커브
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup")
+	TObjectPtr<UCurveFloat> ScaleCurve = nullptr;
 
 	// 아이템 획득에 걸리는 시간(초)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
@@ -98,8 +98,9 @@ private:
 	// 획득 되었는지 여부(true면 획득 처리 중)
 	bool bPickuped = false;
 
-	// 획득했을 때 메시 위치
+	// 획득했을 때 메시 위치(월드)
 	FVector PickupStartLocation;
 
-
+	// 스폰 직후 먹지 못하는 시간동안 기다리는 것을 처리하는 타이머 핸들
+	FTimerHandle PickupableTimer;
 };
