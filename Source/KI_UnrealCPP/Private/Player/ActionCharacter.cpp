@@ -8,6 +8,7 @@
 #include "Camera/CameraComponent.h"
 #include "Player/ResourceComponent.h"
 #include "Player/StatusComponent.h"
+#include "Player/WeaponManagerComponent.h"
 #include "Weapon/WeaponActor.h"
 #include "Weapon/UsedWeapon.h"
 #include "Item/Pickupable.h"
@@ -31,9 +32,11 @@ AActionCharacter::AActionCharacter()
 
 	DropLocation = CreateDefaultSubobject<USceneComponent>(TEXT("DropLocation"));
 	DropLocation->SetupAttachment(RootComponent);
+	DropLocation->SetRelativeLocation(FVector(80.0f, 30.0f, 0.0f));
 
 	Resource = CreateDefaultSubobject<UResourceComponent>(TEXT("PlayerResource"));
 	Status = CreateDefaultSubobject<UStatusComponent>(TEXT("PlayerStatus"));
+	WeaponManager = CreateDefaultSubobject<UWeaponManagerComponent>(TEXT("WeaponManager"));
 
 	bUseControllerRotationYaw = false;	// 컨트롤러의 Yaw 회전 사용 안함
 	GetCharacterMovement()->bOrientRotationToMovement = true;	// 이동 방향으로 캐릭터 회전
@@ -99,8 +102,35 @@ void AActionCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void AActionCharacter::AddItem_Implementation(EItemCode Code)
 {
-	const UEnum* EnumPtr = StaticEnum<EItemCode>();
-	UE_LOG(LogTemp, Log, TEXT("아이템 추가 : %s"), *EnumPtr->GetDisplayNameTextByValue(static_cast<int8>(Code)).ToString());
+	//const UEnum* EnumPtr = StaticEnum<EItemCode>();
+	//UE_LOG(LogTemp, Log, TEXT("아이템 추가 : %s"), *EnumPtr->GetDisplayNameTextByValue(static_cast<int8>(Code)).ToString());
+
+	EquipWeapon(Code);
+}
+
+void AActionCharacter::EquipWeapon(EItemCode WeaponCode)
+{
+	if (CurrentWeapon.IsValid())
+	{
+		// 장비하고 있던 무기는 해제
+		CurrentWeapon->WeaponActivate(false);
+	}
+
+	// WeaponCode에 해당하는 무기 장비
+	CurrentWeapon = WeaponManager->GetEquippedWeapon(WeaponCode);
+	CurrentWeapon->WeaponActivate(true);
+}
+
+void AActionCharacter::DropWeapon(EItemCode WeaponCode)
+{
+	UE_LOG(LogTemp, Log, TEXT("다쓴 무기 버리기"));
+	if (TSubclassOf<AUsedWeapon> usedClass = WeaponManager->GetUsedWeaponClass(WeaponCode))
+	{
+		GetWorld()->SpawnActor<AActor>(
+			usedClass,
+			DropLocation->GetComponentLocation(),
+			GetActorRotation());
+	}
 }
 
 void AActionCharacter::OnAttackEnable(bool bEnable)
@@ -113,7 +143,10 @@ void AActionCharacter::OnAttackEnable(bool bEnable)
 
 void AActionCharacter::TestDropUsedWeapon()
 {
-	DropUsedWeapon();
+	if (CurrentWeapon.IsValid())
+	{
+		DropWeapon(CurrentWeapon->GetWeaponID());
+	}
 }
 
 void AActionCharacter::TestDropCurrentWeapon()
@@ -220,7 +253,9 @@ void AActionCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterru
 	// UE_LOG(LogTemp, Log, TEXT("공격 몽타주가 끝남"));
 	if (CurrentWeapon.IsValid() && !CurrentWeapon->CanAttack())	// CurrentWeapon이 공격할 수 없으면(=사용회수가 안남았다)
 	{
-		DropUsedWeapon();
+		//DropUsedWeapon();		
+		DropWeapon(CurrentWeapon->GetWeaponID());	// 현재 사용 중인 무기 버리기
+		EquipWeapon(EItemCode::BasicWeapon);
 	}
 }
 
@@ -254,21 +289,6 @@ void AActionCharacter::SpendRunStamina(float DeltaTime)
 	}
 
 	//GetWorld()->GetFirstPlayerController()->GetHUD();
-}
-
-void AActionCharacter::DropUsedWeapon()
-{
-	UE_LOG(LogTemp, Log, TEXT("다쓴 무기 버리기"));
-	if (CurrentWeapon.IsValid())
-	{
-		if (TSubclassOf<AUsedWeapon>* usedClass = UsedWeapons.Find(CurrentWeapon->GetWeaponID()))
-		{
-			GetWorld()->SpawnActor<AActor>(
-				*usedClass,
-				DropLocation->GetComponentLocation(),
-				GetActorRotation());
-		}
-	}
 }
 
 void AActionCharacter::DropCurrentWeapon()
