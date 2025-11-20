@@ -23,8 +23,6 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	virtual void BeginOverlap()
-
 	UFUNCTION(BlueprintCallable, Category = "Test")
 	void TestColorChange(const FLinearColor& InColor);
 
